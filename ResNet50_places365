@@ -1,0 +1,104 @@
+import tensorflow as tf
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
+
+# Paths to dataset directories
+train_dir = "/Users/dannyzheng/Desktop/USC/CSCI 567/CSCI567_Project_Weather_Images/places365/train"
+val_dir = "/Users/dannyzheng/Desktop/USC/CSCI 567/CSCI567_Project_Weather_Images/places365/val"
+
+# Image size and batch size
+IMG_SIZE = (224, 224)
+BATCH_SIZE = 32
+
+# Training data generator
+train_datagen = ImageDataGenerator(
+    rescale=1.0/255,
+    rotation_range=30,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True
+)
+train_generator = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=IMG_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode='categorical'
+)
+
+# Validation data generator
+val_datagen = ImageDataGenerator(rescale=1.0/255)
+val_generator = val_datagen.flow_from_directory(
+    val_dir,
+    target_size=IMG_SIZE,
+    batch_size=BATCH_SIZE,
+    class_mode='categorical'
+)
+
+
+# Load the base ResNet50 model
+base_model = ResNet50(
+    weights="imagenet",  # Use ImageNet-pretrained weights
+    include_top=False,   # Exclude the top (fully connected) layers
+    input_shape=(224, 224, 3)
+)
+
+# Freeze the base model layers
+base_model.trainable = False
+
+# Add custom layers for Places365 classification
+x = base_model.output
+x = GlobalAveragePooling2D()(x)  # Add global average pooling
+x = Dense(1024, activation='relu')(x)  # Add a dense layer
+outputs = Dense(train_generator.num_classes, activation='softmax')(x)  # Output layer
+
+# Create the model
+model = Model(inputs=base_model.input, outputs=outputs)
+
+
+
+
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+# Train the model
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=10,  # Adjust based on dataset size
+    steps_per_epoch=len(train_generator),
+    validation_steps=len(val_generator)
+)
+
+
+
+# Unfreeze the base model
+base_model.trainable = True
+
+# Recompile the model with a lower learning rate
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),  # Lower learning rate
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+# Fine-tune the model
+history_finetune = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=5,  # Additional epochs for fine-tuning
+    steps_per_epoch=len(train_generator),
+    validation_steps=len(val_generator)
+)
+
+
+
+model.save("resnet50_places365.h5")
+
+
