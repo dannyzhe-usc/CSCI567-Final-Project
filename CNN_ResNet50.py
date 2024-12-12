@@ -11,17 +11,21 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import Callback, EarlyStopping
 from sklearn.metrics import confusion_matrix, classification_report
+from tensorflow.keras import regularizers
 
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input
 
-import torch
-import torchfile
-from torchvision import models
+#import torch
+#import torchfile
+#from torchvision import models
 
+# Place dataset in the same folder as this file!
+path = 'dataset'
+if not os.path.exists('dataset'):
+    print("Error: Please place dataset in the same folder as this file and name it to 'dataset'!")
+    exit()
 
-
-path = '/Users/dannyzheng/Desktop/USC/CSCI 567/CSCI567_Project_Weather_Images/weather_images_dataset'
 path_imgs = list(glob.glob(path+'/**/*.jpg'))
 # print(path_imgs)
 
@@ -66,6 +70,15 @@ def gen(pre,train,test):
     train_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(100,100), class_mode='categorical', batch_size=32, shuffle=True, seed=567, subset='training', rotation_range=30, zoom_range=0.15, width_shift_range=0.2, height_shift_range=0.2, shear_range=0.15, horizontal_flip=True, fill_mode="nearest")
     valid_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(100,100), class_mode='categorical', batch_size=32, shuffle=False, seed=567, subset='validation', rotation_range=30, zoom_range=0.15, width_shift_range=0.2, height_shift_range=0.2, shear_range=0.15, horizontal_flip=True, fill_mode="nearest")
     test_gen = test_datagen.flow_from_dataframe(dataframe=test, x_col='File_Path', y_col='Labels', target_size=(100,100), color_mode='rgb', class_mode='categorical', batch_size=32, verbose=0, shuffle=False)
+    return train_gen, valid_gen, test_gen
+
+def gen2(pre, train, test):
+    train_datagen = ImageDataGenerator(preprocessing_function=pre, validation_split=0.2)
+    test_datagen = ImageDataGenerator(preprocessing_function=pre)
+    
+    train_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(256,256), class_mode='categorical', batch_size=32, shuffle=True, seed=567, subset='training', fill_mode="nearest")
+    valid_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(256,256), class_mode='categorical', batch_size=32, shuffle=False, seed=567, subset='validation', fill_mode="nearest")
+    test_gen = test_datagen.flow_from_dataframe(dataframe=test, x_col='File_Path', y_col='Labels', target_size=(256,256), color_mode='rgb', class_mode='categorical', batch_size=32, verbose=1, shuffle=False)
     return train_gen, valid_gen, test_gen
 
 # visualize model perf function
@@ -114,29 +127,21 @@ def result_test(test,model_use):
     
     return results
 
-
-
-
-
-
-
-
-
-
-
-
 # set up pre trained resnet50 for transfer learning
 # uses imagenet dataset
 # TODO: maybe use places365 dataset
-ResNet_pre=preprocess_input
-train_gen_ResNet, valid_gen_ResNet, test_gen_ResNet = gen(ResNet_pre,train_df,test_df)
+if (len(tensorflow.config.list_physical_devices('GPU')) > 0):
+    print("Using gpu " + str(tensorflow.config.list_physical_devices('GPU')[0]))
 
-pre_model = ResNet50(input_shape=(100,100, 3), include_top=False, weights='imagenet', pooling='avg')
+ResNet_pre=preprocess_input
+train_gen_ResNet, valid_gen_ResNet, test_gen_ResNet = gen2(ResNet_pre,train_df,test_df)
+
+pre_model = ResNet50(input_shape=(256,256, 3), include_top=False, weights='imagenet', pooling='avg')
 pre_model.trainable = False
 inputs = pre_model.input
 
 # TODO: decide how many fully connected layers at the end 
-x = Dense(100, activation='relu')(pre_model.output) # first fully connected layer
+x = Dense(256, activation='relu')(pre_model.output) # first fully connected layer
 x = Dense(64, activation='relu')(x) # second fully connected layer
 x = Dense(32, activation='relu')(x) # third fully connected layer
 
@@ -147,12 +152,13 @@ model.compile(loss = 'categorical_crossentropy',optimizer='Adam',metrics=['accur
 callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')]
 ResNet_model = model
 
+print("fit model")
 history = ResNet_model.fit(
     train_gen_ResNet,
     validation_data=valid_gen_ResNet,
     epochs=100,
     callbacks=callback,
-    verbose=0
+    verbose=1
 )
 history_ResNet= plot(history,test_gen_ResNet,train_gen_ResNet, ResNet_model)
 result_ResNet = result_test(test_gen_ResNet,ResNet_model)
