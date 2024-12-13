@@ -1,0 +1,22 @@
+              precision    recall  f1-score   support
+
+         dew       0.96      0.98      0.97       395
+     fogsmog       0.84      0.92      0.88       410
+       frost       0.92      0.90      0.91       420
+       glaze       0.78      0.94      0.85       416
+        hail       0.99      0.95      0.97       386
+   lightning       0.93      1.00      0.96       375
+        rain       0.93      0.91      0.92       423
+     rainbow       0.95      0.98      0.97       386
+        rime       0.77      0.88      0.82       362
+   sandstorm       0.98      0.81      0.89       398
+        snow       0.94      0.68      0.79       429
+
+    accuracy                           0.90      4400
+   macro avg       0.91      0.90      0.90      4400
+weighted avg       0.91      0.90      0.90      4400
+
+    Test Loss: 0.39734
+Test Accuracy: 90.16%
+
+5 fully connected layers 1000 → Dropout(0.01) →  512 → 100 → 64 → 32. All layers with relu.

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import Callback, EarlyStopping
 from sklearn.metrics import confusion_matrix, classification_report
@@ -15,10 +17,6 @@ from tensorflow.keras import regularizers
 
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input
-
-#import torch
-#import torchfile
-#from torchvision import models
 
 # Place dataset in the same folder as this file!
 path = 'dataset'
@@ -39,22 +37,23 @@ data = data.sample(frac=1).reset_index(drop=True)
 # EDA and visualization 
 
 # show random sample of different labels 
-fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(15, 7),
+# uncomment to see random sample of images
+'''fig, axes = plt.subplots(nrows=4, ncols=4, figsize=(15, 7),
                         subplot_kw={'xticks': [], 'yticks': []})
 for i, ax in enumerate(axes.flat):
     ax.imshow(plt.imread(data.File_Path[i]))
     ax.set_title(data.Labels[i])
 plt.tight_layout()
-# uncomment to see random sample of images
-# plt.show()
+plt.show()'''
 
-# display bar graph of # of images per label 
-counts = data.Labels.value_counts()
+# display bar graph of # of images per label
+# uncomment to see num images per label 
+'''counts = data.Labels.value_counts()
 sns.barplot(x=counts.index, y=counts)
 plt.xlabel('Labels')
 plt.ylabel('Count')
-plt.xticks(rotation=50)
-# uncomment to see num images per label 
+plt.xticks(rotation=50)'''
+
 # plt.show()
 
 # train test split 
@@ -141,7 +140,13 @@ pre_model.trainable = False
 inputs = pre_model.input
 
 # TODO: decide how many fully connected layers at the end 
-x = Dense(256, activation='relu')(pre_model.output) # first fully connected layer
+#print(pre_model.output.shape)
+x = Dense(1024, activation='relu')(pre_model.output) # first fully connected layer
+x = Dropout(0.4)(x)
+x = Dense(512, activation='relu')(x)
+x = Dropout(0.4)(x)
+x = Dense(100, activation='relu')(x)
+x = Dropout(0.4)(x)
 x = Dense(64, activation='relu')(x) # second fully connected layer
 x = Dense(32, activation='relu')(x) # third fully connected layer
 
@@ -149,7 +154,7 @@ outputs = Dense(11, activation='softmax')(x)
 model = Model(inputs=inputs, outputs=outputs)
 model.compile(loss = 'categorical_crossentropy',optimizer='Adam',metrics=['accuracy'])
 
-callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=3, mode='auto')]
+callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=5, mode='auto')]
 ResNet_model = model
 
 print("fit model")
