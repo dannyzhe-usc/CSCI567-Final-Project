@@ -62,17 +62,7 @@ train_df, test_df = train_test_split(data, test_size=0.2, random_state=2)
 # print(train_df)
 # print(test_df)
 
-# augment data function
-def gen(pre,train,test):
-    train_datagen = ImageDataGenerator(preprocessing_function=pre, validation_split=0.2)
-    test_datagen = ImageDataGenerator(preprocessing_function=pre)
-    
-    train_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(100,100), class_mode='categorical', batch_size=32, shuffle=True, seed=567, subset='training', rotation_range=30, zoom_range=0.15, width_shift_range=0.2, height_shift_range=0.2, shear_range=0.15, horizontal_flip=True, fill_mode="nearest")
-    valid_gen = train_datagen.flow_from_dataframe(dataframe=train, x_col='File_Path', y_col='Labels', target_size=(100,100), class_mode='categorical', batch_size=32, shuffle=False, seed=567, subset='validation', rotation_range=30, zoom_range=0.15, width_shift_range=0.2, height_shift_range=0.2, shear_range=0.15, horizontal_flip=True, fill_mode="nearest")
-    test_gen = test_datagen.flow_from_dataframe(dataframe=test, x_col='File_Path', y_col='Labels', target_size=(100,100), color_mode='rgb', class_mode='categorical', batch_size=32, verbose=0, shuffle=False)
-    return train_gen, valid_gen, test_gen
-
-def gen2(pre, train, test):
+def gen(pre, train, test):
     train_datagen = ImageDataGenerator(preprocessing_function=pre, validation_split=0.2)
     test_datagen = ImageDataGenerator(preprocessing_function=pre)
     
@@ -128,16 +118,24 @@ def result_test(test,model_use):
     return results
 
 def build_model(hp):
-    # TODO: decide how many fully connected layers at the end 
-    #print(pre_model.output.shape)
     pre_model = ResNet50(input_shape=(256,256, 3), include_top=False, weights='imagenet', pooling='avg')
     pre_model.trainable = False
     inputs = pre_model.input
-    x = Dense(hp.Choice('units1', [1024, 512, 256]), activation='relu')(pre_model.output) # first fully connected layer
+    x = Dense(hp.Choice('units1', [1024, 512, 256]), activation='relu')(pre_model.output)
+    x = Dropout(hp.Float('dropout1', min_value=0, max_value=0.5, step=0.1))(x)
+    x = Dense(hp.Choice('units2', [1024, 512, 256]), activation='relu')(x)
+    x = Dropout(hp.Float('dropout2', min_value=0, max_value=0.5, step=0.1))(x)
+    x = Dense(hp.Choice('units3', [512, 256, 128]), activation='relu')(x)
+    x = Dropout(hp.Float('dropout3', min_value=0, max_value=0.5, step=0.1))(x)
+    x = Dense(hp.Choice('units4', [256, 128, 64]), activation='relu')(x)
+    x = Dropout(hp.Float('dropout4', min_value=0, max_value=0.5, step=0.1))(x)
+    x = Dense(hp.Choice('units5', [64, 32]), activation='relu')(x)
+
+    '''x = Dense(hp.Choice('units1', [1024, 512, 256]), activation='relu')(pre_model.output) # first fully connected layer
     x = Dropout(hp.Float('dropout1', min_value=0, max_value=0.5, step=0.1))(x)
     x = Dense(hp.Choice('units4', [256, 128, 64]), activation='relu')(x) # second fully connected layer
     x = Dropout(hp.Float('dropout4', min_value=0, max_value=0.5, step=0.1))(x)
-    x = Dense(hp.Choice('units5', [64, 32]), activation='relu')(x) # third fully connected layer
+    x = Dense(hp.Choice('units5', [64, 32]), activation='relu')(x) # third fully connected layer'''
 
     outputs = Dense(11, activation='softmax')(x)
     model = Model(inputs=inputs, outputs=outputs)
@@ -149,13 +147,12 @@ def build_model(hp):
 
 # set up pre trained resnet50 for transfer learning
 # uses imagenet dataset
-# TODO: maybe use places365 dataset
 if (len(tensorflow.config.list_physical_devices('GPU')) > 0):
     print("Using gpu " + str(tensorflow.config.list_physical_devices('GPU')[0]))
 
 ResNet_pre=preprocess_input
-train_gen_ResNet, valid_gen_ResNet, test_gen_ResNet = gen2(ResNet_pre,train_df,test_df)
-tuner = keras_tuner.Hyperband(build_model, objective='val_accuracy', directory='hyperparameter_trials_2', project_name='hyperparameter_trials_2', overwrite=False)
+train_gen_ResNet, valid_gen_ResNet, test_gen_ResNet = gen(ResNet_pre,train_df,test_df)
+tuner = keras_tuner.Hyperband(build_model, objective='val_accuracy', directory='hyperparameter_trials', project_name='hyperparameter_trials', overwrite=False)
 callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=5, mode='auto')]
 tuner.search(
     train_gen_ResNet,
@@ -167,17 +164,4 @@ tuner.search(
 
 hyperparameters = tuner.get_best_hyperparameters()[0]
 print(hyperparameters)
-
-
-'''ResNet_model = model
-
-history = ResNet_model.fit(
-    train_gen_ResNet,
-    validation_data=valid_gen_ResNet,
-    epochs=100,
-    callbacks=callback,
-    verbose=1
-)
-history_ResNet= plot(history,test_gen_ResNet,train_gen_ResNet, ResNet_model)
-result_ResNet = result_test(test_gen_ResNet,ResNet_model)'''
 
