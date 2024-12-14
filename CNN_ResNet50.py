@@ -138,17 +138,31 @@ pre_model = ResNet50(input_shape=(256,256, 3), include_top=False, weights='image
 pre_model.trainable = False
 inputs = pre_model.input
 
-x = Dense(512, activation='relu')(pre_model.output) # first fully connected layer
+'''x = Dense(1000, activation='relu')(pre_model.output)
+x = Dropout(0.2)(x)
+x = Dense(512, activation='relu')(x)
+x = Dropout(0.2)(x)
+x = Dense(100, activation='relu')(x)
+x = Dropout(0.2)(x)
+x = Dense(64, activation='relu')(x)
+x = Dense(32, activation='relu')(x)'''
+
+'''x = Dense(1024, activation='relu')(pre_model.output)
+x = Dropout(0.1)(x)
+x = Dense(64, activation='relu')(x)
+x = Dense(64, activation='relu')(x)'''
+
+x = Dense(512, activation='relu')(pre_model.output)
 x = Dropout(0.1)(x)
 x = Dense(256, activation='relu')(x)
 x = Dropout(0.2)(x)
 x = Dense(256, activation='relu')(x)
-x = Dense(128, activation='relu')(x) # second fully connected layer
-x = Dense(64, activation='relu')(x) # third fully connected layer
+x = Dense(128, activation='relu')(x)
+x = Dense(64, activation='relu')(x)
 
 outputs = Dense(11, activation='softmax')(x)
 model = Model(inputs=inputs, outputs=outputs)
-model.compile(loss = 'categorical_crossentropy',optimizer='Adam',metrics=['accuracy'])
+model.compile(loss = 'categorical_crossentropy',optimizer='Adamax',metrics=['accuracy'])
 
 callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=5, mode='auto')]
 ResNet_model = model

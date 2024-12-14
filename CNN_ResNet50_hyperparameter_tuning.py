@@ -135,10 +135,6 @@ def build_model(hp):
     inputs = pre_model.input
     x = Dense(hp.Choice('units1', [1024, 512, 256]), activation='relu')(pre_model.output) # first fully connected layer
     x = Dropout(hp.Float('dropout1', min_value=0, max_value=0.5, step=0.1))(x)
-    x = Dense(hp.Choice('units2', [1024, 512, 256]), activation='relu')(x)
-    x = Dropout(hp.Float('dropout2', min_value=0, max_value=0.5, step=0.1))(x)
-    x = Dense(hp.Choice('units3', [512, 256, 128]), activation='relu')(x)
-    x = Dropout(hp.Float('dropout3', min_value=0, max_value=0.5, step=0.1))(x)
     x = Dense(hp.Choice('units4', [256, 128, 64]), activation='relu')(x) # second fully connected layer
     x = Dropout(hp.Float('dropout4', min_value=0, max_value=0.5, step=0.1))(x)
     x = Dense(hp.Choice('units5', [64, 32]), activation='relu')(x) # third fully connected layer
@@ -159,7 +155,7 @@ if (len(tensorflow.config.list_physical_devices('GPU')) > 0):
 
 ResNet_pre=preprocess_input
 train_gen_ResNet, valid_gen_ResNet, test_gen_ResNet = gen2(ResNet_pre,train_df,test_df)
-tuner = keras_tuner.Hyperband(build_model, objective='val_accuracy', directory='hyperparameter_trials', project_name='hyperparameter_trials', overwrite=False)
+tuner = keras_tuner.Hyperband(build_model, objective='val_accuracy', directory='hyperparameter_trials_2', project_name='hyperparameter_trials_2', overwrite=False)
 callback  = [EarlyStopping(monitor='val_loss', min_delta=0, patience=5, mode='auto')]
 tuner.search(
     train_gen_ResNet,
@@ -169,8 +165,8 @@ tuner.search(
     verbose=1
 )
 
-best_hps = tuner.get_best_hyperparameters()[0]
-print(best_hps)
+hyperparameters = tuner.get_best_hyperparameters()[0]
+print(hyperparameters)
 
 
 '''ResNet_model = model
