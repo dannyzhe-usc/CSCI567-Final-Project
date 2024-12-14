@@ -167,4 +167,4 @@ history = ResNet_model.fit(
 history_ResNet= plot(history,test_gen_ResNet,train_gen_ResNet, ResNet_model)
 result_ResNet = result_test(test_gen_ResNet,ResNet_model)
 
-ResNet_model.save('weather_model.h5')
+ResNet_model.save('weather_model.keras')
